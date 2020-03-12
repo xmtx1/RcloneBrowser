@@ -22,7 +22,7 @@ MainWindow::MainWindow() {
   }
 
   //!!!
-
+/*
   QStringList disks;
 
   foreach (QFileInfo drive, QDir::drives()) {
@@ -32,7 +32,7 @@ MainWindow::MainWindow() {
 
   QMessageBox::information(this, tr("Disks"),
                            tr("Disks:\n\n") + disks.join(","));
-
+*/
   auto settings = GetSettings();
   ui.queueScriptRun->setChecked(
       (settings->value("Settings/queueScriptRun").toBool()));
