@@ -21,6 +21,18 @@ MainWindow::MainWindow() {
     this->setWindowTitle("Rclone Browser");
   }
 
+  //!!!
+
+  QStringList disks;
+
+  foreach (QFileInfo drive, QDir::drives()) {
+    qDebug() << "Drive: " << drive.absolutePath();
+    disks << drive.absolutePath();
+  }
+
+  QMessageBox::information(this, tr("Disks"),
+                           tr("Disks:\n\n") + disks.join(","));
+
   auto settings = GetSettings();
   ui.queueScriptRun->setChecked(
       (settings->value("Settings/queueScriptRun").toBool()));
@@ -205,6 +217,9 @@ MainWindow::MainWindow() {
                           ".png");
   QPixmap arrowUpPixmap(":remotes/images/qbutton_icons/arrowup" + img_add +
                         ".png");
+  QPixmap mount1Pixmap(":remotes/images/qbutton_icons/mount1" + img_add +
+                       ".png");
+
   QPixmap sortZAPixmap(":remotes/images/qbutton_icons/sortZA" + img_add +
                        ".png");
   QPixmap sortAZPixmap(":remotes/images/qbutton_icons/sortAZ" + img_add +
@@ -212,6 +227,7 @@ MainWindow::MainWindow() {
 
   QIcon arrowDownIcon(arrowDownPixmap);
   QIcon arrowUpIcon(arrowUpPixmap);
+  QIcon mount1Icon(mount1Pixmap);
   QIcon sortZAIcon(sortZAPixmap);
   QIcon sortAZIcon(sortAZPixmap);
 
@@ -979,11 +995,21 @@ MainWindow::MainWindow() {
 
           JobOptions *jo = item->GetData();
 
-          JobOptionsListWidgetItem *newitem = new JobOptionsListWidgetItem(
-              jo,
-              jo->jobType == JobOptions::JobType::Download ? mDownloadIcon
-                                                           : mUploadIcon,
-              jo->description);
+          QIcon jobIcon;
+
+          if (jo->jobType == JobOptions::JobType::Download) {
+            if (jo->operation == JobOptions::Mount) {
+              jobIcon = mMountIcon;
+            } else {
+              jobIcon = mDownloadIcon;
+            }
+          }
+          if (jo->jobType == JobOptions::JobType::Upload) {
+            jobIcon = mUploadIcon;
+          }
+
+          JobOptionsListWidgetItem *newitem =
+              new JobOptionsListWidgetItem(jo, jobIcon, jo->description);
 
           ui.queueListWidget->addItem(newitem);
         }
@@ -1324,6 +1350,7 @@ MainWindow::MainWindow() {
 
   mUploadIcon = arrowUpIcon;
   mDownloadIcon = arrowDownIcon;
+  mMountIcon = mount1Icon;
 
   // remove close button from these tabs
   ui.tabs->tabBar()->setTabButton(0, QTabBar::RightSide, nullptr);
@@ -2282,11 +2309,22 @@ void MainWindow::addTasksToQueue() {
       QString line = in.readLine();
 
       for (JobOptions *jo : ljo->getTasks()) {
-        JobOptionsListWidgetItem *item = new JobOptionsListWidgetItem(
-            jo,
-            jo->jobType == JobOptions::JobType::Download ? mDownloadIcon
-                                                         : mUploadIcon,
-            jo->description);
+
+        QIcon jobIcon = mDownloadIcon;
+
+        if (jo->jobType == JobOptions::JobType::Download) {
+          if (jo->operation == JobOptions::Mount) {
+            jobIcon = mMountIcon;
+          } else {
+            jobIcon = mDownloadIcon;
+          }
+        }
+        if (jo->jobType == JobOptions::JobType::Upload) {
+          jobIcon = mUploadIcon;
+        }
+
+        JobOptionsListWidgetItem *item =
+            new JobOptionsListWidgetItem(jo, jobIcon, jo->description);
 
         if (jo->uniqueId.toString() == line) {
           ++mQueueCount;
@@ -2357,11 +2395,22 @@ void MainWindow::listTasks() {
   ListOfJobOptions *ljo = ListOfJobOptions::getInstance();
 
   for (JobOptions *jo : ljo->getTasks()) {
-    JobOptionsListWidgetItem *item = new JobOptionsListWidgetItem(
-        jo,
-        jo->jobType == JobOptions::JobType::Download ? mDownloadIcon
-                                                     : mUploadIcon,
-        jo->description);
+
+    QIcon jobIcon;
+
+    if (jo->jobType == JobOptions::JobType::Download) {
+      if (jo->operation == JobOptions::Mount) {
+        jobIcon = mMountIcon;
+      } else {
+        jobIcon = mDownloadIcon;
+      }
+    }
+    if (jo->jobType == JobOptions::JobType::Upload) {
+      jobIcon = mUploadIcon;
+    }
+
+    JobOptionsListWidgetItem *item =
+        new JobOptionsListWidgetItem(jo, jobIcon, jo->description);
     ui.tasksListWidget->addItem(item);
   }
 
@@ -2411,11 +2460,21 @@ void MainWindow::listTasks() {
 
         ui.queueListWidget->takeItem(i);
 
+        QIcon jobIcon = mDownloadIcon;
+
+        if (jo_task->jobType == JobOptions::JobType::Download) {
+          if (jo_task->operation == JobOptions::Mount) {
+            jobIcon = mMountIcon;
+          } else {
+            jobIcon = mDownloadIcon;
+          }
+        }
+        if (jo_task->jobType == JobOptions::JobType::Upload) {
+          jobIcon = mUploadIcon;
+        }
+
         JobOptionsListWidgetItem *item_insert = new JobOptionsListWidgetItem(
-            jo_task,
-            jo_task->jobType == JobOptions::JobType::Download ? mDownloadIcon
-                                                              : mUploadIcon,
-            jo_task->description);
+            jo_task, jobIcon, jo_task->description);
 
         ui.queueListWidget->insertItem(i, item_insert);
 
@@ -2522,14 +2581,37 @@ void MainWindow::editSelectedTask() {
     QString remoteType = (jo->remoteType);
     QString remoteMode = (jo->remoteMode);
 
+    QString jobType = "";
+
+    if (jo->jobType == JobOptions::Download) {
+      if (jo->operation == JobOptions::Mount) {
+        jobType = "Mount";
+      } else {
+        jobType = "Download";
+      }
+    }
+    if (jo->jobType == JobOptions::Upload) {
+      jobType = "Upload";
+    }
+
+    qDebug() << "jobType: " << jobType;
+
     QString remote = isDownload ? jo->source : jo->dest;
     QString path = isDownload ? jo->dest : jo->source;
     // qDebug() << "remote:" + remote;
     // qDebug() << "path:" + path;
 
-    TransferDialog td(isDownload, false, remote, path, jo->isFolder, remoteType,
-                      remoteMode, this, jo, true);
-    td.exec();
+    if (jobType == "Download" || jobType == "Upload") {
+
+      TransferDialog td(isDownload, false, remote, path, jo->isFolder,
+                        remoteType, remoteMode, this, jo, true);
+      td.exec();
+    } else {
+
+      if (jobType == "Mount") {
+        //!!! edit special jobs like mount
+      }
+    }
   }
 
   // restore the selection to help user keep track of what s/he was doing

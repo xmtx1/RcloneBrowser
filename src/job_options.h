@@ -10,7 +10,7 @@ public:
 
   ~JobOptions();
 
-  enum Operation { UnknownOp, Copy, Move, Sync };
+  enum Operation { UnknownOp, Copy, Move, Sync, Mount, Check, CryptCheck };
   enum JobType { UnknownJobType, Upload, Download };
 
   /*

@@ -82,6 +82,7 @@ private:
   void editSelectedTask();
   QIcon mUploadIcon;
   QIcon mDownloadIcon;
+  QIcon mMountIcon;
 
   void addTasksToQueue();
 };
