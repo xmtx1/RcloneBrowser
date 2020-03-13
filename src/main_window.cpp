@@ -7,9 +7,11 @@
 #include "remote_widget.h"
 #include "stream_widget.h"
 #include "transfer_dialog.h"
+#include "mount_dialog.h"
 #include "utils.h"
 #ifdef Q_OS_MACOS
 #include "osx_helper.h"
+#include "global.h"
 #endif
 
 MainWindow::MainWindow() {
@@ -20,6 +22,8 @@ MainWindow::MainWindow() {
   } else {
     this->setWindowTitle("Rclone Browser");
   }
+
+//int globalInt = 0;
 
   //!!!
 /*
@@ -575,6 +579,8 @@ MainWindow::MainWindow() {
       QString remoteType = type;
 
       auto remote = new RemoteWidget(&mIcons, name, remoteType, ui.tabs);
+      QObject::connect(remote, &RemoteWidget::addNewMount, this,
+                       &MainWindow::addNewMount);
       QObject::connect(remote, &RemoteWidget::addMount, this,
                        &MainWindow::addMount);
       QObject::connect(remote, &RemoteWidget::addStream, this,
@@ -978,6 +984,7 @@ MainWindow::MainWindow() {
       if (button == QMessageBox::Yes) {
 
         mQueueCount = mQueueCount + items.count();
+
         if (mQueueStatus) {
           if (mQueueCount == 0) {
             ui.tabs->setTabText(3, QString("Queue (%1)>>(0)").arg(mQueueCount));
@@ -2607,9 +2614,10 @@ void MainWindow::editSelectedTask() {
                         remoteType, remoteMode, this, jo, true);
       td.exec();
     } else {
-
       if (jobType == "Mount") {
         //!!! edit special jobs like mount
+//        MountDialog md(remote, path, remoteType, this);
+//        md.exec();
       }
     }
   }
@@ -2816,6 +2824,109 @@ void MainWindow::runQueueScript(const QString &script) {
 
   p->start(script);
 }
+
+
+
+
+
+
+
+
+//!!!
+void MainWindow::addNewMount(const QString &remote, const QString &folder,
+                          const QString &remoteType, const QStringList &args) {
+
+//!!! remove it later
+if ( remoteType == "" ) {}
+
+  QStringList argsFinal = args;
+
+  QProcess *mount = new QProcess(this);
+  mount->setProcessChannelMode(QProcess::MergedChannels);
+
+  if (ui.jobs->count() == 2) {
+    ui.noJobsAvailable->hide();
+  }
+
+  ui.tabs->setTabText(1, QString("Jobs (%1)").arg(++mJobCount));
+
+  ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
+  ui.buttonCleanNotRunning->setEnabled(mJobCount != (ui.jobs->count() - 2) / 2);
+
+  // get default mount options
+  auto settings = GetSettings();
+  QString opt = settings->value("Settings/mount").toString();
+
+  argsFinal << GetRcloneConf();
+
+  if (!opt.isEmpty()) {
+    // split on spaces but not if inside quotes e.g. --option-1 --option-2="arg1
+    // arg2" --option-3 arg3 should generate "--option-1" "--option-2=\"arg1
+    // arg2\"" "--option-3" "arg3"
+    for (QString arg : opt.split(QRegExp(" (?=[^\"]*(\"[^\"]*\"[^\"]*)*$)"))) {
+      if (!arg.isEmpty()) {
+        argsFinal << arg.replace("\"", "");
+      }
+    }
+  }
+
+/*
+#if defined(Q_OS_WIN32)
+  argsFinal << "--rc";
+  argsFinal << "--rc-addr";
+
+  // calculate remote control interface port based on mount drive letter
+  // this way every mount will have unique port assigned
+  int port_offset = folder[0].toLatin1();
+  unsigned short int rclone_rc_port_base = 19000;
+  unsigned short int rclone_rc_port = rclone_rc_port_base + port_offset;
+  argsFinal << "localhost:" + QVariant(rclone_rc_port).toString();
+#endif
+*/
+  // for google drive "shared with me" without --read-only writes go created in
+  // main google drive it is more logical to mount it as read only so there is
+  // no confusion
+
+  auto widget = new MountWidget(mount, remote, folder, argsFinal);
+
+  auto line = new QFrame();
+  line->setFrameShape(QFrame::HLine);
+  line->setFrameShadow(QFrame::Sunken);
+
+  ui.jobs->insertWidget(0, widget);
+  ui.jobs->insertWidget(1, line);
+
+  QObject::connect(widget, &MountWidget::finished, this, [=]() {
+    if (--mJobCount == 0) {
+      ui.tabs->setTabText(1, "Jobs");
+    } else {
+      ui.tabs->setTabText(1, QString("Jobs (%1)").arg(mJobCount));
+    }
+
+    ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
+    ui.buttonCleanNotRunning->setEnabled(mJobCount !=
+                                         (ui.jobs->count() - 2) / 2);
+  });
+
+  QObject::connect(widget, &MountWidget::closed, this, [=]() {
+    ui.jobs->removeWidget(widget);
+    ui.jobs->removeWidget(line);
+    widget->deleteLater();
+    delete line;
+    if (ui.jobs->count() == 2) {
+      ui.noJobsAvailable->show();
+    }
+    ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
+    ui.buttonCleanNotRunning->setEnabled(mJobCount !=
+                                         (ui.jobs->count() - 2) / 2);
+  });
+
+  UseRclonePassword(mount);
+  mount->start(GetRclone(), args, QIODevice::ReadOnly);
+}
+
+
+
 
 void MainWindow::addMount(const QString &remote, const QString &folder,
                           const QString &remoteType) {

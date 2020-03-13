@@ -1,5 +1,4 @@
 #pragma once
-
 #include "icon_cache.h"
 #include "job_options.h"
 #include "pch.h"
@@ -27,6 +26,9 @@ private slots:
                 const QString &remoteType);
   void addStream(const QString &remote, const QString &stream,
                  const QString &remoteType);
+
+  void addNewMount(const QString &remote, const QString &folder,
+                const QString &remoteType, const QStringList &args);
 
   void runQueueScript(const QString &script);
 
@@ -83,6 +85,8 @@ private:
   QIcon mUploadIcon;
   QIcon mDownloadIcon;
   QIcon mMountIcon;
+//!!!
+  int mTest = 0;
 
   void addTasksToQueue();
 };

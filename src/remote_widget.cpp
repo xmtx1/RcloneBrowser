@@ -2,12 +2,14 @@
 #include "check_dialog.h"
 #include "dedupe_dialog.h"
 #include "export_dialog.h"
+#include "mount_dialog.h"
 #include "icon_cache.h"
 #include "item_model.h"
 #include "list_of_job_options.h"
 #include "progress_dialog.h"
 #include "transfer_dialog.h"
 #include "utils.h"
+#include "global.h"
 
 RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
                            const QString &remoteType, QWidget *parent)
@@ -106,6 +108,10 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
   ui.buttonMove->setDefaultAction(ui.move);
   ui.buttonPurge->setDefaultAction(ui.purge);
   ui.buttonMount->setDefaultAction(ui.mount);
+
+//!!!
+  ui.buttonNewMount->setDefaultAction(ui.actionNewMount);
+
   ui.buttonStream->setDefaultAction(ui.stream);
   ui.buttonUpload->setDefaultAction(ui.upload);
   ui.buttonDownload->setDefaultAction(ui.download);
@@ -115,7 +121,6 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
   ui.buttonLink->setDefaultAction(ui.link);
   ui.buttonExport->setDefaultAction(ui.export_);
   ui.buttonInfo->setDefaultAction(ui.getInfo);
-  ui.buttonDedupe->setDefaultAction(ui.actionDedupe);
 
   // buttons and icons size
   int icon_w = 16;
@@ -788,6 +793,43 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       animation->setEndValue(150);
       animation->start(QPropertyAnimation::DeleteWhenStopped);
     }
+  });
+
+
+//!!!
+  QObject::connect(ui.actionNewMount, &QAction::triggered, this, [=]() {
+
+    setRemoteMode(ui.cb_GoogleDriveMode->currentIndex(), remoteType);
+
+    QModelIndex index = ui.tree->selectionModel()->selectedRows().front();
+
+    QString path_info = model->path(index).path();
+    QString pathMsg = isLocal ? QDir::toNativeSeparators(path_info) : path_info;
+
+    QString path = model->path(index).path();
+
+    QDir path_mount = model->path(index);
+
+    MountDialog e(remote, path_mount, remoteType, remoteMode, this);
+
+ if (e.exec() == QDialog::Accepted) {
+
+  QStringList args = e.getOptions();
+
+#if defined(Q_OS_WIN)
+  // add RC port to the global list
+  if (args.contains("--rc-addr")) {
+  int index = args.indexOf(QRegExp("^localhost:\\d+$"));
+    if (index >= 0) {
+      QString localhost = args.at(index);
+      global.usedRcPorts << localhost.replace("localhost:","").toInt();
+    }
+  }
+#endif
+
+      emit addNewMount(remote + ":" + path, e.getMountPoint(), remoteType, args);
+}
+
   });
 
   QObject::connect(ui.actionCheck, &QAction::triggered, this, [=]() {

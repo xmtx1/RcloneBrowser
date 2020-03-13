@@ -1,5 +1,6 @@
 #include "mount_widget.h"
 #include "utils.h"
+#include "global.h"
 
 MountWidget::MountWidget(QProcess *process, const QString &remote,
                          const QString &folder, const QStringList &args,
@@ -96,11 +97,7 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
     if (isRunning) {
       int button = QMessageBox::question(
           this, "Unmount",
-#if defined(Q_OS_WIN)
-          QString("Do you want to unmount\n\n %1 drive?").arg(folder),
-#else
-          QString("Do you want to unmount\n\n %1 folder?").arg(folder),
-#endif
+          QString("Do you want to unmount?\n\n %2 \n\n mounted to \n\n %1").arg(folder).arg(remote),
           QMessageBox::Yes | QMessageBox::No);
       if (button == QMessageBox::Yes) {
         cancel();
@@ -175,19 +172,43 @@ void MountWidget::cancel() {
   QProcess *p = new QProcess();
   QStringList args;
   args << "rc";
+
   // requires rlone version at least 1.50
   args << "core/quit";
 
   args << "--rc-addr";
-  QString folder = ui.folder->text();
 
-  int port_offset = folder[0].toLatin1();
-  unsigned short int rclone_rc_port_base = 19000;
-  unsigned short int rclone_rc_port = rclone_rc_port_base + port_offset;
-  args << "localhost:" + QVariant(rclone_rc_port).toString();
+  // get RC parameters from mArgs
+  int index = 0;
+  QString localhost;
+  QString user;
+  QString password;
+  int rcPort;
+  QString rcPortString;
+
+  index = mArgs.indexOf(QRegExp("^localhost:\\d+$"));
+  localhost = mArgs.at(index);
+  rcPortString = localhost;
+  rcPort = rcPortString.replace("localhost:","").toInt();
+
+  index = mArgs.indexOf(QRegExp("^--rc-user\\S+"));
+  user =  mArgs.at(index);
+
+  index = mArgs.indexOf(QRegExp("^--rc-pass\\S+"));
+  password = mArgs.at(index);
+
+  args << localhost << user << password;
 
   UseRclonePassword(p);
   p->start(GetRclone(), args, QIODevice::ReadOnly);
+
+/*
+  //!!! remove rcPort from global list
+  if ( global.usedRcPorts.contains(rcPort) ) {
+    global.usedRcPorts.removeOne(rcPort);
+  }
+*/
+
 #else
   QProcess::startDetached("fusermount", QStringList()
                                             << "-u" << ui.folder->text());

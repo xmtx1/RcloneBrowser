@@ -144,6 +144,13 @@
            </widget>
           </item>
           <item>
+           <widget class="QToolButton" name="buttonNewMount">
+            <property name="text">
+             <string>...</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QToolButton" name="buttonStream">
             <property name="text">
              <string>Stream</string>
@@ -614,6 +621,11 @@ rclone about</string>
    </property>
    <property name="toolTip">
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Remove duplicated files&lt;/p&gt;&lt;p&gt;rclone &lt;span style=&quot; font-family:'.SF NS Mono';&quot;&gt;dedupe&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
+  <action name="actionNewMount">
+   <property name="text">
+    <string>New Mount</string>
    </property>
   </action>
  </widget>

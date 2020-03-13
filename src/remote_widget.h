@@ -24,6 +24,10 @@ signals:
   void addStream(const QString &remote, const QString &stream,
                  const QString &remoteType);
 
+  void addNewMount(const QString &remote, const QString &folder,
+                const QString &remoteType, const QStringList &args);
+
+
 private:
   Ui::RemoteWidget ui;
 
