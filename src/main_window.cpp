@@ -445,6 +445,10 @@ MainWindow::MainWindow() {
   ui.actionPurgeQueue->setStatusTip(
       "Remove all not running tasks from the queue");
 
+  ui.buttonStopAllJobs->setEnabled(false);
+  ui.buttonCleanNotRunning->setEnabled(false);
+
+
   QObject::connect(ui.preferences, &QAction::triggered, this, [=]() {
     PreferencesDialog dialog(this);
     if (dialog.exec() == QDialog::Accepted) {
@@ -2806,6 +2810,11 @@ void MainWindow::addTransfer(const QString &message, const QString &source,
 
   UseRclonePassword(transfer);
   transfer->start(GetRclone(), GetRcloneConf() + args, QIODevice::ReadOnly);
+
+        ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
+        ui.buttonCleanNotRunning->setEnabled(mJobCount !=
+                                             (ui.jobs->count() - 2) / 2);
+
 }
 
 //  runs queueScript
@@ -2850,9 +2859,6 @@ if ( remoteType == "" ) {}
 
   ui.tabs->setTabText(1, QString("Jobs (%1)").arg(++mJobCount));
 
-  ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
-  ui.buttonCleanNotRunning->setEnabled(mJobCount != (ui.jobs->count() - 2) / 2);
-
   // get default mount options
   auto settings = GetSettings();
   QString opt = settings->value("Settings/mount").toString();
@@ -2869,23 +2875,6 @@ if ( remoteType == "" ) {}
       }
     }
   }
-
-/*
-#if defined(Q_OS_WIN32)
-  argsFinal << "--rc";
-  argsFinal << "--rc-addr";
-
-  // calculate remote control interface port based on mount drive letter
-  // this way every mount will have unique port assigned
-  int port_offset = folder[0].toLatin1();
-  unsigned short int rclone_rc_port_base = 19000;
-  unsigned short int rclone_rc_port = rclone_rc_port_base + port_offset;
-  argsFinal << "localhost:" + QVariant(rclone_rc_port).toString();
-#endif
-*/
-  // for google drive "shared with me" without --read-only writes go created in
-  // main google drive it is more logical to mount it as read only so there is
-  // no confusion
 
   auto widget = new MountWidget(mount, remote, folder, argsFinal);
 
@@ -2906,6 +2895,10 @@ if ( remoteType == "" ) {}
     ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
     ui.buttonCleanNotRunning->setEnabled(mJobCount !=
                                          (ui.jobs->count() - 2) / 2);
+
+  //!!! remove rcPort from global list
+  // we should  check with saved tasks
+
   });
 
   QObject::connect(widget, &MountWidget::closed, this, [=]() {
@@ -2923,6 +2916,9 @@ if ( remoteType == "" ) {}
 
   UseRclonePassword(mount);
   mount->start(GetRclone(), args, QIODevice::ReadOnly);
+
+  ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
+  ui.buttonCleanNotRunning->setEnabled(mJobCount != (ui.jobs->count() - 2) / 2);
 }
 
 
@@ -3127,6 +3123,9 @@ void MainWindow::addStream(const QString &remote, const QString &stream,
   player->start(stream, QProcess::ReadOnly);
   UseRclonePassword(rclone);
   rclone->start(GetRclone(), QStringList() << args, QProcess::WriteOnly);
+
+  ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
+  ui.buttonCleanNotRunning->setEnabled(mJobCount != (ui.jobs->count() - 2) / 2);
 }
 
 void MainWindow::slotCloseTab(int index) {

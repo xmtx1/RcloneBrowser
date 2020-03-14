@@ -202,12 +202,11 @@ void MountWidget::cancel() {
   UseRclonePassword(p);
   p->start(GetRclone(), args, QIODevice::ReadOnly);
 
-/*
   //!!! remove rcPort from global list
+  // we should later check with saved tasks
   if ( global.usedRcPorts.contains(rcPort) ) {
     global.usedRcPorts.removeOne(rcPort);
   }
-*/
 
 #else
   QProcess::startDetached("fusermount", QStringList()

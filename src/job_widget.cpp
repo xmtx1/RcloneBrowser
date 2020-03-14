@@ -185,9 +185,13 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
       } else if (rxErrors.exactMatch(line)) {
         ui.errors->setText(rxErrors.cap(1));
 
+
+      if ( !(rxErrors.cap(1).toInt() == 0) ) {
         ui.progress_info->setStyleSheet(
             "QLabel { color: red; font-weight: bold;}");
-
+        ui.errors->setStyleSheet(
+            "QLineEdit { color: red; font-weight: bold;}");
+      }
       } else if (rxChecks.exactMatch(line)) {
         ui.checks->setText(rxChecks.cap(1));
       } else if (rxChecks2.exactMatch(line)) {

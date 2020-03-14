@@ -18,6 +18,7 @@ MountDialog::MountDialog(const QString &remote, const QDir &path,
   int fontsize = 0;
   fontsize = (settings->value("Settings/fontSize").toInt());
   setMinimumWidth(minimumWidth() + (fontsize * 30));
+  QTimer::singleShot(0, this, SLOT(shrink()));
 
 #if !defined(Q_OS_WIN)
   ui.groupBox_Win->hide();
@@ -73,45 +74,29 @@ MountDialog::MountDialog(const QString &remote, const QDir &path,
   ui.label_driveLetterInfo->setDisabled(false);
 
   // initailize drive letters
-  QStringList drivesList = (QStringList() << "A"
-                                          << "B"
-                                          << "C"
-                                          << "D"
-                                          << "E"
-                                          << "F"
-                                          << "G"
-                                          << "H"
-                                          << "I"
-                                          << "J"
-                                          << "K"
-                                          << "L"
-                                          << "M"
-                                          << "N"
-                                          << "O"
-                                          << "P"
-                                          << "Q"
-                                          << "R"
-                                          << "S"
-                                          << "T"
-                                          << "U"
-                                          << "V"
-                                          << "W"
-                                          << "X"
-                                          << "Y"
-                                          << "Z");
+
+  QStringList drivesList;
+  for( char l = 'A'; l<='Z'; ++l) {
+    drivesList << QString(l);
+  }
 
   // get used drives' letters
   QStringList disksUsed;
+
+  // get mounted drives (missing CD ROM but gets mounts)
   foreach (QFileInfo drive, QDir::drives()) {
-    qDebug() << "Drive: " << drive.absolutePath();
     if (!QString(drive.absolutePath().front()).isEmpty()) {
       disksUsed << QString(drive.absolutePath().front());
     }
   }
-
+  // get all local storage drives (catches CD ROM but missing mounts)
+  foreach (const QStorageInfo &storage, QStorageInfo::mountedVolumes()) {
+        if (storage.isValid()) {
+           disksUsed << QString(storage.rootPath().front());
+        }
+   }
   // remove disksUsed from DrivesList
   for (const auto &i : disksUsed) {
-    qDebug() << "i = " << i;
     if (drivesList.contains(i)) {
       drivesList.removeOne(i);
     }
